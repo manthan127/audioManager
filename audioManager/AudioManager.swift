@@ -8,76 +8,78 @@
 import Foundation
 import AVFoundation
 
+//MARK: Error is not handled properly
 class AudioManager: NSObject, AVAudioPlayerDelegate {
-    private var audioPlayer: AVAudioPlayer?
-
     private var audioQueue: [AVAudioPlayer] = []
+    private var queuedAudios: [AVAudioPlayer] = []
 
-    func delayPlay(n: Int = 0) {
-        if n == 5 {return}
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            print("DEBUG: start", n)
-            do {
-                try self.queuePlay()
-            } catch {
-                print(error.localizedDescription)
-            }
-            self.delayPlay(n: n+1)
+
+    private func newAudioPlayer() -> AVAudioPlayer {
+        let url = Bundle.main.url(forResource: "success", withExtension: "mp3")!
+        let audioPlayer = try! AVAudioPlayer(contentsOf: url, fileTypeHint: AVFileType.mp3.rawValue)
+        audioPlayer.delegate = self
+
+        return audioPlayer
+    }
+
+    func reset() {
+        audioQueue = []
+    }
+    
+    func keepCurrent() {
+        if let _ = audioQueue.first(where: {$0.isPlaying}) {
+            return
         }
-    }
-    //1
-    func keepCurrent() throws {
-        if audioPlayer?.isPlaying == true {return}
 
-        guard let url = Bundle.main.url(forResource: "success", withExtension: "mp3") else {return}
-        audioPlayer = try AVAudioPlayer(contentsOf: url, fileTypeHint: AVFileType.mp3.rawValue)
+        let audioPlayer = newAudioPlayer()
+        audioQueue.append(audioPlayer)
 
         print("DEBUG: audio play")
-        audioPlayer?.play()
+        audioPlayer.play()
     }
-    //2
-    func stopCurrent() throws {
-//        if audioPlayer?.isPlaying == true {audioPlayer?.stop()}
-        guard let url = Bundle.main.url(forResource: "success", withExtension: "mp3") else {return}
-        audioPlayer = try AVAudioPlayer(contentsOf: url, fileTypeHint: AVFileType.mp3.rawValue)
+
+    func stopCurrent() {
+        audioQueue = []
+        let audioPlayer = newAudioPlayer()
+        audioQueue.append(audioPlayer)
 
         print("DEBUG: audio play")
-        audioPlayer?.play()
+        audioPlayer.play()
     }
 
-    //3
-    func multiplePlay() throws {
-        guard let url = Bundle.main.url(forResource: "success", withExtension: "mp3") else {return}
-        let audioPlayer = try AVAudioPlayer(contentsOf: url, fileTypeHint: AVFileType.mp3.rawValue)
+    func multiplePlay() {
+        let audioPlayer = newAudioPlayer()
 
         print("DEBUG: audio play")
         audioPlayer.play()
         audioQueue.append(audioPlayer)
     }
 
-    //4
-    func queuePlay() throws {
-        guard let url = Bundle.main.url(forResource: "success", withExtension: "mp3") else {return}
-        let audioPlayer = try AVAudioPlayer(contentsOf: url, fileTypeHint: AVFileType.mp3.rawValue)
-        audioPlayer.delegate = self
+    func queuePlay() {
+        let audioPlayer = newAudioPlayer()
 
         if audioQueue.isEmpty {
             print("DEBUG: audio play")
             audioPlayer.play()
         }
         audioQueue.append(audioPlayer)
+        queuedAudios.append(audioPlayer)
     }
 
-    //4
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         guard flag else {return}
         print("DEBUG: audio finish")
 
+        print(audioQueue.count)
         if !audioQueue.isEmpty {audioQueue.removeFirst()}
+//        audioQueue.removeAll(where: {$0 == player})
+
 
         if let audioPlayer = audioQueue.first {
-            print("DEBUG: audio play")
-            audioPlayer.play()
+            if queuedAudios.contains(audioPlayer) {
+                print("DEBUG: queued audio play")
+                audioPlayer.play()
+            }
         }
     }
 }
